@@ -1,4 +1,4 @@
-# Laravel-NOBP-20261 — Backend API Minimarket
+# Laravel-2110040-20261 — Backend API Minimarket
 
 REST API untuk aplikasi mobile **minimarket** (React Native + Expo).
 Dibangun dengan **Laravel 13** + **Laravel Sanctum** (API Token) dan database **MySQL**.
@@ -32,8 +32,8 @@ php -v
 ### 1. Clone repository
 
 ```bash
-git clone https://github.com/Jri1810/Laravel-NOBP-20261.git
-cd Laravel-NOBP-20261
+git clone https://github.com/Jri1810/Laravel-2110040-20261.git
+cd Laravel-2110040-20261
 ```
 
 ### 2. Install dependency
