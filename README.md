@@ -95,11 +95,11 @@ php artisan serve --host=0.0.0.0 --port=8000
 
 ### 8. Catat alamat IP laptop
 
-Buka terminal baru, jalankan `ipconfig`, lalu catat **IPv4 Address** pada adapter Wi-Fi
-(misalnya `192.168.1.15`). Alamat ini dipakai pada `src/config/api.ts` di proyek mobile:
+Buka terminal baru, jalankan `ipconfig`, lalu catat **IPv4 Address** pada adapter Wi-Fi.
+Alamat ini dipakai pada berkas `.env.local` di proyek mobile (salin dari `.env.example`):
 
-```ts
-export const API_BASE_URL = "http://192.168.1.15:8000/api";
+```env
+EXPO_PUBLIC_API_URL=http://<IPv4-LAPTOP>:8000/api
 ```
 
 Pastikan HP dan laptop terhubung ke jaringan Wi-Fi yang sama.
