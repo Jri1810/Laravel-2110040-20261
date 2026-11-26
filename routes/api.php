@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// Publik: dipakai <Image> di aplikasi untuk menampilkan foto profil (tanpa token)
+Route::get('/profile/photo/{user}', [ProfileController::class, 'showPhoto']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [ProfileController::class, 'updateProfile']);

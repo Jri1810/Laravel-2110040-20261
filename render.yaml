@@ -1,0 +1,62 @@
+# Render Blueprint — deploy backend Laravel sebagai Web Service (Docker).
+# Cara pakai: Render Dashboard -> New -> Blueprint -> pilih repo ini.
+#
+# Catatan penting:
+#  - Render TIDAK mendukung interpolasi variabel (${...}) di file ini.
+#  - Jangan pakai `generateValue: true` untuk APP_KEY: Render menghasilkan
+#    base64 tanpa prefix, sedangkan Laravel butuh format "base64:<44 karakter>".
+#    Karena itu APP_KEY memakai `sync: false` dan diisi manual saat deploy.
+
+databases:
+  - name: minimarket-db
+    plan: free
+    databaseName: minimarket
+    # Catatan: database free Render kedaluwarsa 30 hari setelah dibuat.
+    # Buat database baru mendekati jadwal demo bila perlu.
+
+services:
+  - type: web
+    name: minimarket-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /up
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_NAME
+        value: Minimarket
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
+
+      # Jalankan `php artisan key:generate --show` lalu tempel hasilnya di sini.
+      - key: APP_KEY
+        sync: false
+      # Diisi URL layanan setelah deploy pertama, mis. https://minimarket-api.onrender.com
+      - key: APP_URL
+        sync: false
+
+      # Database: DB_URL diisi otomatis dari Render Postgres di bawah.
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: minimarket-db
+          property: connectionString
+
+      # Driver berbasis database agar container tetap stateless
+      # (filesystem Render ephemeral, hilang setiap restart).
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: FILESYSTEM_DISK
+        value: local

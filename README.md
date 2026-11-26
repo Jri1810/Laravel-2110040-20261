@@ -110,12 +110,16 @@ Pastikan HP dan laptop terhubung ke jaringan Wi-Fi yang sama.
 
 Base URL: `http://<IP-LAPTOP>:8000/api`
 
-| Method | Endpoint    | Akses        | Keterangan                            |
-|--------|-------------|--------------|---------------------------------------|
-| POST   | `/register` | Publik       | Daftar akun baru, mengembalikan token |
-| POST   | `/login`    | Publik       | Login, mengembalikan token            |
-| GET    | `/profile`  | Bearer Token | Ambil data profil pengguna            |
-| POST   | `/logout`   | Bearer Token | Hapus token yang sedang dipakai       |
+| Method | Endpoint                | Akses        | Keterangan                                 |
+|--------|-------------------------|--------------|--------------------------------------------|
+| POST   | `/register`             | Publik       | Daftar akun baru, mengembalikan token      |
+| POST   | `/login`                | Publik       | Login, mengembalikan token                 |
+| GET    | `/profile`              | Bearer Token | Ambil data profil pengguna                 |
+| PUT    | `/profile`              | Bearer Token | Update nama, email, dan no_hp              |
+| PUT    | `/profile/password`     | Bearer Token | Ganti kata sandi (verifikasi sandi lama)   |
+| POST   | `/profile/photo`        | Bearer Token | Upload foto, dikonversi ke WebP (maks 5 MB)|
+| GET    | `/profile/photo/{id}`   | Publik       | Sajikan foto profil hasil konversi         |
+| POST   | `/logout`               | Bearer Token | Hapus token yang sedang dipakai            |
 
 ### Format respons
 
@@ -249,7 +253,69 @@ config/cors.php                               # allowed_origins: ['*']
 
 ---
 
+## Deploy Online ke Render (Docker)
+
+Laravel tidak punya runtime native di Render, sehingga aplikasi ini dideploy
+sebagai **Docker Web Service** memakai `Dockerfile` di repo ini
+(nginx + php-fpm 8.4 + Postgres).
+
+### 1. Generate `APP_KEY`
+
+```bash
+php artisan key:generate --show
+```
+
+Salin hasilnya (format `base64:...`). Nilai ini **wajib diisi manual** di Render:
+`generateValue` milik Render tidak menghasilkan format yang diterima Laravel.
+
+### 2. Deploy lewat Blueprint (paling cepat)
+
+1. Render Dashboard → **New** → **Blueprint**
+2. Pilih repository ini
+3. Saat diminta, isi `APP_KEY` dan `APP_URL`
+   (`APP_URL` = `https://<nama-service>.onrender.com`)
+4. **Deploy**
+
+### 3. Variabel lingkungan wajib
+
+| Key | Nilai |
+|---|---|
+| `APP_ENV` | `production` |
+| `APP_DEBUG` | `false` |
+| `APP_KEY` | `base64:...` |
+| `APP_URL` | `https://<service>.onrender.com` |
+| `DB_CONNECTION` | `pgsql` |
+| `DB_URL` | connection string Render Postgres |
+| `SESSION_DRIVER` | `database` |
+| `CACHE_STORE` | `database` |
+| `LOG_CHANNEL` | `stderr` |
+
+### Catatan Render free plan
+
+1. **Filesystem ephemeral.** File di disk hilang setiap redeploy/restart/spin-down.
+   Karena itu **foto profil disimpan ke tabel `profile_photos`**, bukan ke
+   `storage/app/public`. Kolom `users.foto` berisi URL
+   `/api/profile/photo/{id}` sehingga foto tetap tampil setelah restart.
+2. **Spin-down setelah 15 menit idle**, butuh ~1 menit untuk bangun kembali.
+   Aplikasi mobile memakai timeout 60 detik untuk mengakomodasi ini. Agar
+   responsif saat demo, ping `https://<service>.onrender.com/up` secara berkala.
+3. **Render Postgres free kedaluwarsa 30 hari** setelah dibuat — buat database
+   baru bila jadwal demo masih jauh.
+
+### Health check
+
+`GET /up` mengembalikan `200` bila aplikasi berjalan.
+
+### Konversi foto (Modul 12)
+
+Foto di-crop 1:1, diperkecil maksimal 512×512 px, lalu dikonversi ke **WebP**
+kualitas 80 memakai ekstensi GD (`imagewebp`). Rotasi EXIF dari kamera HP
+diperbaiki otomatis. Seluruh proses diverifikasi oleh `tests/Feature/ProfilePhotoTest.php`.
+
+---
+
 ## Lisensi
 
 Project praktikum ini dibuat untuk keperluan akademik.
 Framework Laravel dilisensikan di bawah [MIT license](https://opensource.org/licenses/MIT).
+

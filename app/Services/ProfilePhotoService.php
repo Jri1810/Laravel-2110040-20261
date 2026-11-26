@@ -2,21 +2,27 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class ProfilePhotoService
 {
     /**
      * Validasi binary gambar, auto-rotate EXIF kamera, crop 1:1 maks 512x512 px,
-     * konversi ke format WebP ringan, lalu hapus foto profil lama dari disk.
+     * lalu konversi ke WebP ringan.
+     *
+     * Mengembalikan array ['binary' => string, 'mime' => string] supaya pemanggil
+     * bisa menyimpannya ke database (filesystem Render bersifat ephemeral).
      */
-    public function storeAndOptimize(UploadedFile $file, User $user): string
+    public function optimize(UploadedFile $file): array
     {
         if (! extension_loaded('gd')) {
             throw new RuntimeException('Ekstensi PHP GD belum aktif di server.');
+        }
+
+        if (function_exists('ini_set')) {
+            // Crop + resize butuh memori lebih dari default untuk foto kamera besar
+            @ini_set('memory_limit', '256M');
         }
 
         $rawBinary = file_get_contents($file->getRealPath());
@@ -32,13 +38,13 @@ class ProfilePhotoService
         // 1. Perbaiki rotasi otomatis foto portrait dari kamera HP (EXIF)
         $sourceImage = $this->fixExifOrientation($sourceImage, $file);
 
-        $origWidth  = imagesx($sourceImage);
+        $origWidth = imagesx($sourceImage);
         $origHeight = imagesy($sourceImage);
 
         // 2. Center-crop persegi (1:1) & perkecil maksimal 512x512 px
-        $cropSize   = min($origWidth, $origHeight);
-        $srcX       = (int) floor(($origWidth - $cropSize) / 2);
-        $srcY       = (int) floor(($origHeight - $cropSize) / 2);
+        $cropSize = min($origWidth, $origHeight);
+        $srcX = (int) floor(($origWidth - $cropSize) / 2);
+        $srcY = (int) floor(($origHeight - $cropSize) / 2);
         $targetSize = min($cropSize, 512);
 
         $canvas = imagecreatetruecolor($targetSize, $targetSize);
@@ -60,14 +66,14 @@ class ProfilePhotoService
             $cropSize
         );
 
-        // 3. Konversi & kompres ke format WebP (kualitas 80 -> ukuran sangat ringan)
+        // 3. Konversi & kompres ke WebP (kualitas 80 -> ukuran sangat ringan)
         ob_start();
         if (function_exists('imagewebp')) {
             imagewebp($canvas, null, 80);
-            $extension = 'webp';
+            $mime = 'image/webp';
         } else {
             imagejpeg($canvas, null, 82);
-            $extension = 'jpg';
+            $mime = 'image/jpeg';
         }
         $optimizedBinary = ob_get_clean();
 
@@ -77,16 +83,10 @@ class ProfilePhotoService
             throw new RuntimeException('Gagal mengonversi foto profil di server.');
         }
 
-        // 4. Simpan ke storage/app/public/profiles/
-        $relativePath = sprintf('profiles/user_%d_%d.%s', $user->id, time(), $extension);
-        Storage::disk('public')->put($relativePath, $optimizedBinary);
-
-        // 5. Hapus foto profil lama jika ada agar ruang server tetap bersih
-        if (! empty($user->foto) && Storage::disk('public')->exists($user->foto)) {
-            Storage::disk('public')->delete($user->foto);
-        }
-
-        return $relativePath;
+        return [
+            'binary' => $optimizedBinary,
+            'mime' => $mime,
+        ];
     }
 
     private function fixExifOrientation(\GdImage $image, UploadedFile $file): \GdImage
