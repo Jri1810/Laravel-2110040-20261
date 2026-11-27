@@ -5,13 +5,15 @@ FROM php:8.4-fpm-alpine
 
 # Ekstensi yang dibutuhkan aplikasi (fileinfo, mbstring, dan opcache sudah
 # tersedia bawaan di image php:fpm-alpine sehingga tidak perlu dipasang lagi):
-#  - pdo_pgsql : database Render Postgres
+#  - pdo_mysql : database MySQL (Railway / Laragon)
+#  - pdo_pgsql : database PostgreSQL (Render / Neon)
 #  - gd        : crop/resize + imagewebp() untuk foto profil (Modul 12)
 #  - exif      : auto-rotate foto kamera HP
 #  - intl, zip : kebutuhan Laravel
 COPY --from=ghcr.io/mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
 
 RUN install-php-extensions \
+        pdo_mysql \
         pdo_pgsql \
         gd \
         exif \
